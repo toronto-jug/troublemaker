@@ -14,7 +14,8 @@ import java.util.stream.Stream;
 
 @CommandLine.Command(
         subcommands = {
-                troublemaker.HttpPlaintext.class
+                troublemaker.HttpPlaintext.class,
+                troublemaker.HttpWithTls.class
         },
         mixinStandardHelpOptions = true)
 public class troublemaker {
@@ -35,6 +36,31 @@ public class troublemaker {
                                     .uri(URI.create("http://httpbin.org/status/401"))
                                     .build(),
                             HttpResponse.BodyHandlers.ofLines());
+            if (response.statusCode() != 200) {
+                throw new IOException("Bad status");
+            }
+            response.body().forEach(System.out::println);
+            return null;
+        }
+    }
+
+    @CommandLine.Command(name = "https")
+    public static class HttpWithTls implements Callable<Void> {
+
+        @CommandLine.Option(names = "--version")
+        HttpClient.Version version = HttpClient.Version.HTTP_2;
+
+        @Override
+        public Void call() throws Exception {
+            HttpResponse<Stream<String>> response =
+                    HttpClient.newBuilder()
+                            .version(version)
+                            .build()
+                            .send(HttpRequest.newBuilder()
+                                            .GET()
+                                            .uri(URI.create("https://httpbin.org/status/401"))
+                                            .build(),
+                                    HttpResponse.BodyHandlers.ofLines());
             if (response.statusCode() != 200) {
                 throw new IOException("Bad status");
             }
