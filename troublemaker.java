@@ -9,13 +9,16 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.SecureRandom;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 
 @CommandLine.Command(
         subcommands = {
                 troublemaker.HttpPlaintext.class,
-                troublemaker.HttpWithTls.class
+                troublemaker.HttpWithTls.class,
+                troublemaker.PickRandom.class
         },
         mixinStandardHelpOptions = true)
 public class troublemaker {
@@ -68,4 +71,20 @@ public class troublemaker {
             return null;
         }
     }
+
+    @CommandLine.Command(name = "pick-random")
+    public static class PickRandom implements Callable<Void> {
+
+        @Override
+        public Void call() throws Exception {
+            Random rand = new SecureRandom();
+            boolean cont = true;
+            while(cont) {
+                int i = rand.nextInt();
+                System.out.println(i);
+            }
+            return null;
+        }
+    }
+
 }
