@@ -18,7 +18,8 @@ import java.util.stream.Stream;
         subcommands = {
                 troublemaker.HttpPlaintext.class,
                 troublemaker.HttpWithTls.class,
-                troublemaker.PickRandom.class
+                troublemaker.PickRandom.class,
+                troublemaker.DeadLock.class
         },
         mixinStandardHelpOptions = true)
 public class troublemaker {
@@ -79,12 +80,65 @@ public class troublemaker {
         public Void call() throws Exception {
             Random rand = new SecureRandom();
             boolean cont = true;
-            while(cont) {
+            while (cont) {
                 int i = rand.nextInt();
                 System.out.println(i);
+                Thread.sleep(1000);
             }
             return null;
         }
     }
+
+    @CommandLine.Command(name = "dead-lock")
+    public static class DeadLock implements Callable<Void> {
+
+        @Override
+        public Void call() throws Exception {
+            Object lockA = new Object();
+            Object lockB = new Object();
+
+            Thread threadA = new Thread(() -> {
+                while (true) {
+                    synchronized (lockA) {
+                        try {
+                            Thread.sleep(1000);
+                            synchronized (lockB) {
+                                System.out.println("I win");
+                            }
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            }, "Player 1");
+
+            System.out.println("Starting Player 1");
+            threadA.start();
+
+            Thread threadB = new Thread(() -> {
+                while (true) {
+                    synchronized (lockB) {
+                        try {
+                            Thread.sleep(1000);
+                            synchronized (lockA) {
+                                System.out.println("No, I win");
+                            }
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            }, "Player 2");
+
+            System.out.println("Starting Player 2");
+            threadB.start();
+
+            threadA.join();
+            threadB.join();
+
+            return null;
+        }
+    }
+
 
 }
