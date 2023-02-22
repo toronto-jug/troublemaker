@@ -4,7 +4,11 @@
 
 import picocli.CommandLine;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -16,9 +20,11 @@ import java.util.stream.Stream;
 
 @CommandLine.Command(
         subcommands = {
-                troublemaker.HttpPlaintext.class,
+                troublemaker.Http.class,
                 troublemaker.HttpWithTls.class,
                 troublemaker.PickRandom.class,
+                troublemaker.Listen.class,
+                troublemaker.OpenFile.class,
                 troublemaker.DeadLock.class
         },
         mixinStandardHelpOptions = true)
@@ -28,22 +34,30 @@ public class troublemaker {
         System.exit(new CommandLine(troublemaker.class).execute(args));
     }
 
-    @CommandLine.Command(name = "http-plaintext")
-    public static class HttpPlaintext implements Callable<Void> {
+    @CommandLine.Command(name = "http")
+    public static class Http implements Callable<Void> {
+
+        @CommandLine.Option(names = "--loop")
+        boolean loop = false;
+
+        @CommandLine.Option(names = "--url")
+        String url = "http://httpbin.org/status/401";
 
         @Override
         public Void call() throws Exception {
-            HttpResponse<Stream<String>> response =
-                    HttpClient.newHttpClient().send(
-                            HttpRequest.newBuilder()
-                                    .GET()
-                                    .uri(URI.create("http://httpbin.org/status/401"))
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofLines());
-            if (response.statusCode() != 200) {
-                throw new IOException("Bad status");
-            }
-            response.body().forEach(System.out::println);
+            do {
+                HttpResponse<Stream<String>> response =
+                        HttpClient.newHttpClient().send(
+                                HttpRequest.newBuilder()
+                                        .GET()
+                                        .uri(URI.create(url))
+                                        .build(),
+                                HttpResponse.BodyHandlers.ofLines());
+                if (response.statusCode() != 200) {
+                    throw new IOException("Bad status");
+                }
+                response.body().forEach(System.out::println);
+            } while (loop);
             return null;
         }
     }
@@ -140,5 +154,37 @@ public class troublemaker {
         }
     }
 
+    @CommandLine.Command(name = "listen")
+    public static class Listen implements Callable<Void> {
 
+        @CommandLine.Option(names = "--port")
+        int port = 8080;
+
+        @Override
+        public Void call() throws Exception {
+            try (ServerSocket socket = new ServerSocket(port)) {
+                System.out.println("Trying to listen on a port");
+                socket.accept();
+            }
+            return null;
+        }
+    }
+
+    @CommandLine.Command(name = "open")
+    public static class OpenFile implements Callable<Void> {
+
+        @CommandLine.Option(names = "--path")
+        String path = "/not/a/file";
+
+        @Override
+        public Void call() throws Exception {
+
+            try (InputStream fis = new FileInputStream(path)) {
+                System.out.println("Opened file " + path);
+            } catch (Exception e) {
+                System.out.println("File not found");
+            }
+            return null;
+        }
+    }
 }
