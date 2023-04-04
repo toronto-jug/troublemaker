@@ -4,7 +4,6 @@
 
 import picocli.CommandLine;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,6 +13,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
@@ -30,6 +31,14 @@ import java.util.stream.Stream;
         mixinStandardHelpOptions = true)
 public class troublemaker {
 
+    public static class ResponseBody {
+        public final List<String> body;
+
+        public ResponseBody(List<String> body) {
+            this.body = body;
+        }
+    }
+
     public static void main(String... args) {
         System.exit(new CommandLine(troublemaker.class).execute(args));
     }
@@ -37,8 +46,13 @@ public class troublemaker {
     @CommandLine.Command(name = "http")
     public static class Http implements Callable<Void> {
 
+        private static List<ResponseBody> responses = new ArrayList<>();
+
         @CommandLine.Option(names = "--loop")
         boolean loop = false;
+
+        @CommandLine.Option(names = "--leak")
+        boolean leak = false;
 
         @CommandLine.Option(names = "--url")
         String url = "http://httpbin.org/status/401";
@@ -56,7 +70,11 @@ public class troublemaker {
                 if (response.statusCode() != 200) {
                     throw new IOException("Bad status");
                 }
-                response.body().forEach(System.out::println);
+                List<String> responseBody = response.body().toList();
+                responseBody.forEach(System.out::println);
+                if(leak) {
+                    responses.add(new ResponseBody(responseBody));
+                }
             } while (loop);
             return null;
         }
